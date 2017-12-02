@@ -1,0 +1,173 @@
+# Welcome to serverless. Read the docs
+# https://serverless.com/framework/docs/
+
+# Serverless.yml is the configuration the CLI
+# uses to deploy your code to your provider of choice
+
+# The `service` block is the name of the service
+service: christmas-list
+
+plugins:
+  - serverless-offline
+  - serverless-secrets-plugin
+
+custom:
+  secrets: ${file(secrets.${opt:stage, self:provider.stage}.yml)}
+
+package:
+  exclude:
+    - secrets.*.yml
+
+# The `provider` block defines where your service will be deployed
+provider:
+  name: aws
+  runtime: nodejs6.10
+  memorySize: 128
+  environment:
+    DB_HOST: ${self:custom.secrets.DB_HOST}
+    DB_USER: ${self:custom.secrets.DB_USER}
+    DB_PASSWORD: ${self:custom.secrets.DB_PASSWORD}
+    DB_DATABASE: ${self:custom.secrets.DB_DATABASE}
+    JWT_SIGNATURE: ${self:custom.secrets.JWT_SIGNATURE}
+    HASHING_PASSWORD: ${self:custom.secrets.HASHING_PASSWORD}
+
+# The `functions` block defines what code to deploy
+functions:
+  authorizationFunction:
+    handler: authorizer.auth
+  helloWorld:
+    handler: handler.helloWorld
+    # The `events` block defines how to trigger the handler.helloWorld code
+    events:
+      - http:
+          path: hello-world
+          method: get
+          authorizer: authorizationFunction
+          cors: true
+  createUser:
+    handler: userManagement.create
+    events:
+      - http:
+          path: user
+          method: post
+          cors: true
+  verifyUser:
+    handler: userManagement.verify
+    events:
+      - http:
+          path: verify
+          method: post
+          cors: true
+  availableConnections:
+    handler: linker.availableConnections
+    events:
+      - http:
+          path: connections/available
+          method: get
+          authorizer: authorizationFunction
+          cors: true
+  currentConnections:
+    handler: linker.currentConnections
+    events:
+      - http:
+          path: connections
+          method: get
+          authorizer: authorizationFunction
+          cors: true
+  connect:
+    handler: linker.connector
+    events:
+      - http:
+          path: connections/{toConnect}
+          method: post
+          authorizer: authorizationFunction
+          request:
+            parameters:
+              paths:
+                toConnectId: true
+          cors: true
+  disconnect:
+    handler: linker.disconnector
+    events:
+      - http:
+          path: connections/{toConnect}
+          method: delete
+          authorizer: authorizationFunction
+          request:
+            parameters:
+              paths:
+                toConnectId: true
+          cors: true
+  getMyPresents:
+    handler: listManager.getItems
+    events:
+      - http:
+          path: my/presents
+          method: get
+          authorizer: authorizationFunction
+          cors: true
+  addPresent:
+    handler: listManager.addItem
+    events:
+      - http:
+          path: my/presents
+          method: post
+          authorizer: authorizationFunction
+          cors: true
+  updatePresent:
+    handler: listManager.updateItem
+    events:
+      - http:
+          path: my/presents/{presentId}
+          method: put
+          authorizer: authorizationFunction
+          request:
+            parameters:
+              paths:
+                presentId: true
+          cors: true
+  deletePresent:
+    handler: listManager.removeItem
+    events:
+      - http:
+          path: my/presents/{presentId}
+          method: delete
+          authorizer: authorizationFunction
+          request:
+            parameters:
+              paths:
+                presentId: true
+          cors: true
+  getOtherPresents:
+    handler: presentManager.getOtherPresents
+    events:
+      - http:
+          path: /presents
+          method: get
+          authorizer: authorizationFunction
+          cors: true
+  markPresentAsPurchased:
+    handler: presentManager.markAsPurchased
+    events:
+      - http:
+          path: /presents/{presentId}
+          method: post
+          authorizer: authorizationFunction
+          request:
+            parameters:
+              paths:
+                presentId: true
+          cors: true
+  unmarkPresentAsPurchased:
+    handler: presentManager.unmarkAsPurchased
+    events:
+      - http:
+          path: /presents/{presentId}
+          method: delete
+          authorizer: authorizationFunction
+          request:
+            parameters:
+              paths:
+                presentId: true
+          cors: true
+
